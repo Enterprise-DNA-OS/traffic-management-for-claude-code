@@ -1,24 +1,25 @@
 # Why there is no front end
 
-Traffio is a database with a subscription. The tables underneath it are ordinary: a few entities, a few relationships, a handful of workflows you repeat every week. What you pay for is the layer on top that lets people who do not write SQL get at those tables. Screens, filters, dashboards, forms.
+Traffio is a database with a subscription. The records underneath are ordinary: jobs, plans, permits, shifts, crew, tickets, vehicles, dockets, invoices. What you pay for is the layer on top that lets people who do not write queries get at them: the allocation board, the forms, the reports.
 
-That layer used to be the whole product, because talking to a database was hard. It is not hard any more. Open this folder in Claude Code, describe what you want, and it writes the query, runs it, and explains the answer. Ask a question the dashboard never had a chart for and you still get an answer.
+That layer used to be the whole product, because talking to a database was hard. It is not hard any more. Open this folder in Claude Code, ask "who can cover the Kawau Street shift on Monday?", and it checks every controller's ticket for that region, their other bookings and their rest, and gives you the answer with the reason.
 
 ## What you gain
 
-- **Better answers.** A dashboard shows what the vendor decided to chart. Here you ask your own question, in your own words, and get it answered against your own data.
-- **No seats.** Everyone who needs to look can look. The bill does not grow with headcount.
-- **Your data in your Postgres.** Plain tables. Back them up, query them from anything, leave any time. There is no export step because there is nothing to leave.
-- **A process that matches you.** When your way of working changes, you add a command. You do not wait for a feature request to clear.
+- **Answers to your own questions.** Margin per signed hour by job, shifts that cannot legally start, tickets that run out before the last rostered shift. Ask in your own words.
+- **No tiers.** Traffio prices on vehicles, staff or bookings, whichever is higher. Here a new controller or a new ute costs nothing.
+- **Your records in your database.** Back them up, query them from anything, leave any time.
+- **Rules you can read.** Every check is one database view with the source written next to it.
 
 ## What you give up
 
-- **A visual board.** Stages are a table you ask about, not cards you drag.
-- **A phone app.** It runs where Claude Code runs.
-- **A vendor help desk.** This is open source. Enterprise DNA supports the installed version for businesses that want someone to call.
+- **A crew phone app.** Traffio's app sends booking requests, takes sign-ons, prestarts, forms and the client's docket signature on site. Here the office records them. Enterprise DNA builds a phone screen on the same records when you want one.
+- **A drag-and-drop allocation board.** Shifts are a table you ask about, not cards you drag.
+- **A client portal.** Clients get dockets, site packs and invoices as documents, not a login.
+- **A vendor help desk.** This is open source. Enterprise DNA supports the installed version.
 
 ## Who this fits
 
-Small teams who already use Claude Code, or who would rather learn to ask than learn another interface. If your team needs a screen to look at all day, keep Traffio. If you need the answers more than the screens, this is cheaper, faster and yours.
+An office that already lives in spreadsheets and phone calls around its booking system, or one that would rather ask than click. If your crews need the app every shift today, start with the customised version.
 
 Installed and run for you: https://enterprisedna.co/omni/instead-of/traffio

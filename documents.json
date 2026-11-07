@@ -1,11 +1,47 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
-    "file": "name",
+    "name": "site-pack",
+    "title": "Site pack",
+    "for_each": "select id, ref from v_shifts where status = 'planned' and starts_at >= job_now::date and starts_at < job_now::date + 3 order by starts_at",
+    "file": "ref",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      { "title": "The shift", "sql": "select s.ref, j.ref as job, j.name, j.address, j.region, to_char(s.starts_at, 'Dy DD Mon YYYY HH24:MI') as starts, to_char(s.ends_at, 'Dy DD Mon HH24:MI') as ends, c.name as client, c.contact_name as client_contact, j.po_number from v_shifts s join jobs j on j.id = s.job_id join clients c on c.id = j.client_id where s.id = $1" },
+      { "title": "Plan and permit to keep on site", "sql": "select 'plan' as what, p.ref || ' v' || p.version as reference, p.status, p.approved_by, p.valid_from || ' to ' || p.valid_to as valid, null as hours, null as conditions from plans p join shifts s on s.job_id = p.job_id where s.id = $1 and p.status <> 'obsolete' union all select 'permit', p.kind || ' ' || p.reference, p.status, null, p.valid_from || ' to ' || p.valid_to, to_char(p.window_start, 'HH24:MI') || '-' || to_char(p.window_end, 'HH24:MI'), p.conditions from permits p join shifts s on s.job_id = p.job_id where s.id = $1 and p.status in ('applied', 'approved')" },
+      { "title": "Crew and tickets", "sql": "select w.name, x.role, w.phone, (select string_agg(t.region || ' ' || upper(t.kind) || ' ' || t.number || coalesce(' exp ' || t.expires_on, ''), '; ') from tickets t where t.worker_id = w.id) as tickets from crew x join workers w on w.id = x.worker_id where x.shift_id = $1 order by x.role desc, w.name" },
+      { "title": "Vehicles", "sql": "select v.code, v.rego, v.kind, w.name as driver, v.rego_expires, v.inspection_expires from shift_vehicles sv join vehicles v on v.id = sv.vehicle_id left join workers w on w.id = sv.driver_id where sv.shift_id = $1 order by v.code" },
+      { "title": "Open problems", "note": "Nothing here means the shift can start. Anything here is fixed before set-up.", "sql": "select kind, problem, rule from v_shift_problems where shift_id = $1 order by kind" }
+    ]
+  },
+  {
+    "name": "docket",
+    "title": "Job docket",
+    "for_each": "select shift_id as id, ref from v_dockets order by starts_at",
+    "file": "ref",
+    "sections": [
+      { "title": "Job", "sql": "select s.ref, j.ref as job, j.name, c.name as client, j.po_number, to_char(s.starts_at, 'Dy DD Mon YYYY') as day from v_shifts s join jobs j on j.id = s.job_id join clients c on c.id = j.client_id where s.id = $1" },
+      { "title": "Crew hours", "sql": "select worker, role, to_char(signed_on_at, 'HH24:MI') as on_site, to_char(signed_off_at, 'HH24:MI') as off_site, break_minutes, worked_hours from v_crew where shift_id = $1 order by role desc, worker" },
+      { "title": "Vehicles and equipment", "sql": "select v.code, v.rego, v.kind from shift_vehicles sv join vehicles v on v.id = sv.vehicle_id where sv.shift_id = $1 order by v.code" },
+      { "title": "Client sign-off", "sql": "select docket, signed_by, to_char(signed_at, 'DD Mon YYYY HH24:MI') as signed_at, client_ref, note from v_dockets where shift_id = $1" }
+    ]
+  },
+  {
+    "name": "incident-report",
+    "title": "Incident report",
+    "for_each": "select id, ref from incidents order by ref",
+    "file": "ref",
+    "sections": [
+      { "title": "What happened", "sql": "select i.ref, i.job, i.job_name, i.client, to_char(i.occurred_at, 'YYYY-MM-DD HH24:MI') as occurred, i.kind, i.severity, i.worker, i.police_event, i.summary, i.detail from v_incidents i where i.id = $1" },
+      { "title": "Who was told, and when", "sql": "select to_char(client_told_at, 'YYYY-MM-DD HH24:MI') as client_told, case when notifiable then coalesce(to_char(regulator_notified_at, 'YYYY-MM-DD HH24:MI') || ' ref ' || regulator_ref, 'NOT YET') else 'not notifiable' end as regulator_told, closed_on, outcome from incidents where id = $1" }
+    ]
+  },
+  {
+    "name": "invoice",
+    "title": "Tax invoice",
+    "for_each": "select id, ref from invoices order by ref",
+    "file": "ref",
+    "sections": [
+      { "title": "Invoice", "sql": "select i.ref, c.name as client, i.period_from, i.period_to, i.raised_on, i.due_on, i.currency, i.hours, to_char(i.subtotal_cents / 100.0, 'FM999,999,990.00') as subtotal, to_char(i.gst_cents / 100.0, 'FM999,999,990.00') as gst, to_char(i.total_cents / 100.0, 'FM999,999,990.00') as total from invoices i join clients c on c.id = i.client_id where i.id = $1" },
+      { "title": "Lines", "sql": "select l.description, l.hours, to_char(l.rate_cents / 100.0, 'FM9,990.00') as rate, to_char(l.amount_cents / 100.0, 'FM999,990.00') as amount from invoice_lines l join shifts s on s.id = l.shift_id where l.invoice_id = $1 order by s.starts_at, l.description" }
     ]
   }
 ]

@@ -1,0 +1,4 @@
+Employee ID,First Name,Last Name,Mobile,Email,State,Employment Status,Licence Class,Licence Expiry
+TR-501,Ruby,Hale,0400 600 501,ruby.hale@example.com,QLD,Full Time,C,14/03/2029
+TR-502,Nikau,Paewai,021 600 502,nikau@example.com,NZ,Casual,"1,2",02/08/2030
+TR-503,Sam,O'Neill,0400 600 503,,QLD,Subcontractor,"C,MR",21/11/2028

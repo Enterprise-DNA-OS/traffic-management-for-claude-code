@@ -2,12 +2,65 @@
   {
     "name": "week",
     "title": "This week",
-    "subtitle": "Traffic Management for Claude Code: what needs attention, rendered by npm run view",
+    "subtitle": "What needs a person: shifts that cannot start, crews rostered against the law, gaps, vehicles, incidents, dockets and money",
     "sections": [
       {
         "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "note": "The same list as /attention. What cannot start and what breaks the law first, then everything else.",
+        "sql": "select item, ref, detail from (select case when g.kind in ('plan', 'permit', 'law', 'clash') then 1 when g.kind in ('vehicle', 'crew') then 2 else 3 end as r, case g.kind when 'plan' then 'cannot start: plan' when 'permit' then 'cannot start: permit' when 'law' then 'rostered against the law' when 'clash' then 'double booked' when 'vehicle' then 'vehicle not fit to go' when 'crew' then 'short of crew' else 'house rule broken' end as item, g.first_ref as ref, g.job || ': ' || g.problem || ', ' || g.n || ' shift(s) from ' || to_char(g.first_start, 'Dy DD Mon') as detail from (select p.kind, p.problem, s.job, count(*)::int as n, min(s.starts_at) as first_start, (array_agg(p.ref order by s.starts_at))[1] as first_ref from v_shift_problems p join v_shifts s on s.id = p.shift_id where s.ends_at > s.job_now and s.starts_at < s.job_now + interval '7 days' group by p.kind, p.problem, s.job) g union all select 2, standing, ref, job || ': ' || summary from v_incidents where standing in ('regulator not notified', 'client not told') union all select 3, 'docket ' || docket, ref, job || ' ' || to_char(starts_at, 'Dy DD Mon') from v_dockets where docket <> 'signed' union all select 4, 'ticket expires', worker_code, worker || ' ' || region || ' ' || kind || ' ' || expires_on from v_tickets where days_left <= setting_num('warn_days') and worker_status = 'active') x order by r, item, ref"
+      },
+      {
+        "title": "Jobs on the go",
+        "sql": "select j.ref as job, c.code as client, j.name, j.region, (select string_agg(p.ref || ' ' || p.status, ', ') from plans p where p.job_id = j.id and p.status <> 'obsolete') as plan, case when not j.permit_required then 'not needed' else coalesce((select string_agg(p.reference || ' ' || p.status || coalesce(' to ' || p.valid_to, ''), ', ') from permits p where p.job_id = j.id and p.status in ('applied', 'approved')), 'NONE') end as permit, (select count(*)::int from v_shifts s where s.job_id = j.id and s.status = 'planned' and s.ends_at > s.job_now and s.starts_at < s.job_now + interval '7 days') as shifts_this_week from jobs j join clients c on c.id = j.client_id where j.status = 'confirmed' order by j.ref"
+      },
+      {
+        "title": "Hours worked, last 7 days",
+        "sql": "select client, job, count(distinct shift_id)::int as shifts, sum(worked_hours) as worked_hours from v_crew where worked_hours is not null and starts_at >= current_date - 7 group by client, job order by client, job"
+      }
+    ]
+  },
+  {
+    "name": "roster",
+    "title": "Roster, next 7 days",
+    "subtitle": "Every shift with its crew, vehicles and anything wrong with it",
+    "sections": [
+      {
+        "title": "Shifts",
+        "sql": "select s.ref, to_char(s.starts_at, 'Dy DD Mon') as day, to_char(s.starts_at, 'HH24:MI') || '-' || to_char(s.ends_at, 'HH24:MI') as hours, s.job, s.client, coalesce(s.crew, 'NO CREW') as crew, s.vehicles, (select string_agg(distinct p.problem, '; ') from v_shift_problems p where p.shift_id = s.id) as problems from v_shifts s where s.status = 'planned' and s.starts_at >= s.job_now::date and s.starts_at < s.job_now::date + 7 order by s.starts_at, s.job"
+      }
+    ]
+  },
+  {
+    "name": "tickets",
+    "title": "Ticket register",
+    "subtitle": "Every worker's traffic control tickets, soonest to expire first, with the next shift that needs them",
+    "sections": [
+      {
+        "title": "Tickets",
+        "sql": "select worker, region, upper(kind) as ticket, number, issued_on, coalesce(expires_on::text, 'no expiry on card') as expires, days_left, to_char(next_shift, 'Dy DD Mon HH24:MI') as next_shift from v_tickets where worker_status = 'active' order by days_left nulls last, worker"
+      },
+      {
+        "title": "Vehicles",
+        "sql": "select code, rego, kind, region, rego_expires, inspection_expires, service_due_on, case when failed_last_prestart then 'FAILED: ' || last_defects else 'passed' end as last_prestart from v_vehicles where active order by least(rego_days, coalesce(inspection_days, 9999), coalesce(service_days, 9999))"
+      }
+    ]
+  },
+  {
+    "name": "money",
+    "title": "Dockets and invoices",
+    "subtitle": "Work waiting on a signature, signed work not invoiced, and what clients owe",
+    "sections": [
+      {
+        "title": "Dockets not signed",
+        "sql": "select ref, job, client, to_char(starts_at, 'Dy DD Mon') as day, docket, crew_hours, days_since, note from v_dockets where docket <> 'signed' order by starts_at"
+      },
+      {
+        "title": "Signed, not invoiced",
+        "sql": "select client, currency, count(distinct shift_id)::int as shifts, sum(hours) as hours, to_char(round(sum(hours * rate_cents)) / 100.0, 'FM999,999,990.00') as amount from v_unbilled group by client, currency order by client"
+      },
+      {
+        "title": "Invoices",
+        "sql": "select ref, client, raised_on, due_on, currency, to_char(total_cents / 100.0, 'FM999,999,990.00') as total, standing from v_invoices where standing <> 'paid' order by due_on"
       }
     ]
   }

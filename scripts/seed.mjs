@@ -1,28 +1,28 @@
 #!/usr/bin/env node
-// Loads the demo data (supabase/seed.sql). Write seed.sql so a second run does nothing:
-// wrap it in a do $$ block that returns early when a known demo row already exists.
+// Loads the fictional traffic management company in supabase/seed.sql. Safe to run twice.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getDb, REPO_ROOT } from './lib/db.mjs';
+import { migrate } from './migrate.mjs';
 
 export async function seed(db) {
-  await db.exec('BEGIN');
+  await db.exec('begin');
   try {
     await db.exec(readFileSync(path.join(REPO_ROOT, 'supabase', 'seed.sql'), 'utf8'));
-    await db.exec('COMMIT');
-  } catch (error) {
-    await db.exec('ROLLBACK');
-    throw error;
+    await db.exec('commit');
+  } catch (e) {
+    await db.exec('rollback');
+    throw e;
   }
 }
 
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
-if (isMain) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const db = await getDb();
   try {
+    await migrate(db);
     await seed(db);
-    console.log(`seed: demo data ready (${db.mode})`);
+    console.log('seed: fictional traffic management company loaded');
   } finally {
     await db.close();
   }
